@@ -1,0 +1,60 @@
+<div class="flex min-h-screen flex-col px-6 py-8 lg:px-8 bg-white dark:bg-gray-800">
+  <div class="flex justify-between items-center mb-8">
+    <div class="text-2xl font-semibold underline underline-offset-3 decoration-8 decoration-brand">Tasks Dashboard</div>
+    <div>
+      <button (click)="doLogout()" class="text-white bg-red-600 box-border border border-transparent hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-xs font-medium leading-5 rounded-full text-sm px-4 py-2.5 focus:outline-none">Logout</button>
+    </div>
+  </div>
+  <div class="flex gap-4 mb-4">
+    <input [(ngModel)]="filter" placeholder="Filter title/category" class="border p-2 rounded flex-1" />
+    <select [(ngModel)]="categoryFilter" class="border p-2 rounded">
+      <option value="">All categories</option>
+      <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+    </select>
+    <input [(ngModel)]="newTitle" placeholder="New task title" class="border p-2 rounded" />
+    <select [(ngModel)]="newCategory" class="border p-2 rounded">
+      <option value="Work">Work</option>
+      <option value="Personal">Personal</option>
+    </select>
+    <button (click)="create()" class="bg-blue-600 text-white px-3 py-2 rounded">Create</button>
+  </div>
+
+  <div class="grid grid-cols-3 gap-4">
+    <ng-container *ngFor="let col of cols">
+      <div>
+        <h3 class="font-semibold mb-2">{{ col.label }}</h3>
+        <div cdkDropList [cdkDropListData]="col.tasks" class="min-h-[200px] p-2 bg-white rounded shadow" (cdkDropListDropped)="drop($event, col.status)">
+          <div *ngFor="let t of col.tasks" cdkDrag class="p-2 mb-2 border rounded bg-gray-50">
+            <div class="flex justify-between">
+              <div>
+                <div class="font-medium">{{ t.title }}</div>
+                <div class="text-xs text-gray-500">{{ t.category }}</div>
+              </div>
+              <div class="flex gap-2">
+                <button (click)="edit(t)" class="text-sm text-blue-600">Edit</button>
+                <button (click)="remove(t)" class="text-sm text-red-600">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- edit modal (simple inline) -->
+  <div *ngIf="editing" class="fixed inset-0 flex items-center justify-center bg-black/40">
+    <div class="bg-white p-4 rounded w-96">
+      <h3 class="font-semibold mb-2">Edit Task</h3>
+      <input [(ngModel)]="editing.title" class="border p-2 w-full mb-2" />
+      <textarea [(ngModel)]="editing.description" class="border p-2 w-full mb-2"></textarea>
+      <select [(ngModel)]="editing.category" class="border p-2 w-full mb-2">
+        <option>Work</option>
+        <option>Personal</option>
+      </select>
+      <div class="flex justify-end gap-2">
+        <button (click)="saveEdit()" class="bg-blue-600 text-white px-3 py-1 rounded">Save</button>
+        <button (click)="cancelEdit()" class="px-3 py-1 rounded">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
