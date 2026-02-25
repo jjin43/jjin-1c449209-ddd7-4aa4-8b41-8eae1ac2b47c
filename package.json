@@ -3,8 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "seed:api": "node -r @swc-node/register apps/api/src/scripts/seed.ts",
-    "seed:api:js": "node apps/api/src/scripts/seed.js"
+    "seed": "node apps/api/src/scripts/seed.js",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch"
   },
   "private": true,
   "devDependencies": {

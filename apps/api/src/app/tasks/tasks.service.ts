@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Task } from '../entities/task.entity';
 import { Permission } from '../entities/permission.entity';
+import { User } from '../entities/user.entity';
 import { AuditService } from '../audit/audit.service';
 
 type Action = 'edit' | 'delete';
@@ -12,28 +13,39 @@ export class TasksService {
   constructor(
     @InjectRepository(Task) private repo: Repository<Task>,
     @InjectRepository(Permission) private permissionRepo: Repository<Permission>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private auditService: AuditService,
   ) {}
 
-  async findAll(orgId: string, role: string) {
-    const list = await this.repo.find({ where: { organizationId: orgId, role: role as any } });
+  async findAll(user: any) {
+    const list = await this.repo.find({ where: { organizationId: user.organizationId, role: user.role as any } });
     try {
-      await this.auditService.log('', 'list_tasks', 'task', null, orgId);
+      await this.auditService.log(user.userId ?? '', 'list_tasks', 'task', null, user.organizationId);
     } catch (e) {
       console.warn('audit log failed', e);
     }
-    return list;
+
+    const out = await Promise.all(
+      list.map(async (t) => {
+        const canEdit = await this.isAllowed(t.id, user, 'edit', t);
+        const canDelete = await this.isAllowed(t.id, user, 'delete', t);
+        return { ...t, canEdit, canDelete } as any;
+      }),
+    );
+    return out;
   }
 
-  async findOne(id: string, orgId: string, role: string) {
-    const t = await this.repo.findOneBy({ id, organizationId: orgId, role: role as any });
+  async findOne(id: string, user: any) {
+    const t = await this.repo.findOneBy({ id, organizationId: user.organizationId, role: user.role as any });
     if (!t) throw new NotFoundException('Task not found');
     try {
-      await this.auditService.log('', 'read', 'task', id, orgId);
+      await this.auditService.log(user.userId ?? '', 'read', 'task', id, user.organizationId);
     } catch (e) {
       console.warn('audit log failed', e);
     }
-    return t;
+    const canEdit = await this.isAllowed(id, user, 'edit', t);
+    const canDelete = await this.isAllowed(id, user, 'delete', t);
+    return { ...t, canEdit, canDelete } as any;
   }
 
   async create(dto: any, user: any) {
@@ -41,14 +53,30 @@ export class TasksService {
       ...dto,
       organizationId: user.organizationId,
       createdById: user.userId,
-      role: dto.role ?? 'VIEWER',
+      role: dto.role ?? user.role,
     } as any);
     const saved = await this.repo.save(task as any);
 
     // create permission rows: ensure creator has full rights and include any provided permissions
     const provided: any[] = Array.isArray(dto.permissions) ? dto.permissions : [];
     const creatorPerm = { userId: user.userId, canEdit: true, canDelete: true };
-    const perms = [creatorPerm, ...provided.filter(p => p.userId !== user.userId)];
+    const perms: Array<{ userId: string; canEdit?: boolean; canDelete?: boolean }> = [creatorPerm];
+
+    const seen = new Set<string>();
+    seen.add(String(user.userId));
+
+    for (const p of provided) {
+      let uid = p.userId;
+      if (!uid && p.email) {
+        const u = await this.userRepo.findOneBy({ email: p.email, organizationId: user.organizationId } as any);
+        if (u) uid = u.id;
+      }
+      if (!uid) continue; // skip unresolved emails
+      if (seen.has(uid)) continue;
+      seen.add(uid);
+      perms.push({ userId: uid, canEdit: !!p.canEdit, canDelete: !!p.canDelete });
+    }
+
     for (const p of perms) {
       const ent = this.permissionRepo.create({ taskId: saved.id, userId: p.userId, canEdit: !!p.canEdit, canDelete: !!p.canDelete } as any);
       await this.permissionRepo.save(ent);
@@ -70,6 +98,31 @@ export class TasksService {
     if (!allowed) throw new ForbiddenException('Not permitted to edit this task');
     Object.assign(task, dto, { updatedAt: new Date().toISOString() } as any);
     const saved = await this.repo.save(task as any);
+    // If permissions provided, replace permission rows for this task
+    if (Array.isArray(dto.permissions)) {
+      // remove existing permissions
+      await this.permissionRepo.delete({ taskId: saved.id } as any);
+      const provided: any[] = dto.permissions || [];
+      const creatorPerm = { userId: user.userId, canEdit: true, canDelete: true };
+      const perms: Array<{ userId: string; canEdit?: boolean; canDelete?: boolean }> = [creatorPerm];
+      const seen = new Set<string>();
+      seen.add(String(user.userId));
+      for (const p of provided) {
+        let uid = p.userId;
+        if (!uid && p.email) {
+          const u = await this.userRepo.findOneBy({ email: p.email, organizationId: user.organizationId } as any);
+          if (u) uid = u.id;
+        }
+        if (!uid) continue;
+        if (seen.has(uid)) continue;
+        seen.add(uid);
+        perms.push({ userId: uid, canEdit: !!p.canEdit, canDelete: !!p.canDelete });
+      }
+      for (const p of perms) {
+        const ent = this.permissionRepo.create({ taskId: saved.id, userId: p.userId, canEdit: !!p.canEdit, canDelete: !!p.canDelete } as any);
+        await this.permissionRepo.save(ent);
+      }
+    }
     try {
       await this.auditService.log(user.userId, 'update', 'task', id, user.organizationId);
     } catch (e) {

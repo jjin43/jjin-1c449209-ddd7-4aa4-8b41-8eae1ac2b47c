@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TasksController } from './tasks.controller';
-import { TasksService } from './tasks.service';
+import { TasksController } from '../../src/app/tasks/tasks.controller';
+import { TasksService } from '../../src/app/tasks/tasks.service';
 import { RolesGuard } from '@jjin-1c449209-ddd7-4aa4-8b41-8eae1ac2b47c/auth';
 
 describe('TasksController', () => {
@@ -27,7 +27,7 @@ describe('TasksController', () => {
 
   it('calls findAll and returns list', async () => {
     const res = await controller.findAll({ user: { organizationId: 'o1', role: 'VIEWER' } } as any);
-    expect(mockService.findAll).toHaveBeenCalledWith('o1', 'VIEWER');
+    expect(mockService.findAll).toHaveBeenCalledWith({ organizationId: 'o1', role: 'VIEWER' });
     expect(res).toEqual([]);
   });
 

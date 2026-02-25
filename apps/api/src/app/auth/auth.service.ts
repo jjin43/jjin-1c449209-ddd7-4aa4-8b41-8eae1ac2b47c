@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -7,29 +7,30 @@ import { User } from '../entities/user.entity';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     @InjectRepository(User) private usersRepo: Repository<User>,
     private jwtService: JwtService,
   ) {}
 
   async validateUser(email: string, password: string) {
-    console.error('[AuthService] validateUser called', { email, pwdType: typeof password, pwdLen: password ? password.length : 0 });
+    this.logger.debug('[AuthService] validateUser called', { email, pwdType: typeof password, pwdLen: password ? password.length : 0 });
     if (typeof password !== 'string' || password.length === 0) {
-      console.error('[AuthService] missing/invalid password supplied for', { email });
+      this.logger.warn('[AuthService] missing/invalid password supplied for ' + email);
       return null;
     }
     const user = await this.usersRepo.findOneBy({ email });
     if (!user) return null;
     if (!user.passwordHash) {
       // defensive: avoid passing undefined to bcrypt.compare which throws
-      console.error('[AuthService] user has no passwordHash:', { email, userId: user.id });
+      this.logger.warn('[AuthService] user has no passwordHash: ' + email, { userId: user.id });
       return null;
     }
     let match = false;
     try {
       match = await bcrypt.compare(password, user.passwordHash);
     } catch (err) {
-      console.error('[AuthService] bcrypt.compare failed', err);
+      this.logger.error('[AuthService] bcrypt.compare failed', err as any);
       return null;
     }
     if (!match) return null;

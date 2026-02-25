@@ -47,32 +47,41 @@ async function main() {
     createdAt DATETIME DEFAULT (datetime('now'))
   )`);
 
-  // ensure default org
-  let org = await get(db, 'SELECT id FROM organization WHERE name = ?', ['Default Org']);
-  if (!org) {
-    const id = cryptoId();
-    await run(db, 'INSERT INTO organization (id, name) VALUES (?, ?)', [id, 'Default Org']);
-    console.log('[seed.js] created org Default Org', id);
-    org = { id };
-  } else {
-    console.log('[seed.js] found org', org.id);
+  // ensure organizations: Default Org and Other Org
+  const orgNames = ['Default Org', 'Other Org'];
+  const orgMap = {};
+  for (const name of orgNames) {
+    let row = await get(db, 'SELECT id FROM organization WHERE name = ?', [name]);
+    if (!row) {
+      const id = cryptoId();
+      await run(db, 'INSERT INTO organization (id, name) VALUES (?, ?)', [id, name]);
+      console.log('[seed.js] created org', name, id);
+      orgMap[name] = id;
+    } else {
+      console.log('[seed.js] found org', name, row.id);
+      orgMap[name] = row.id;
+    }
   }
 
+  // users to ensure exist. viewer1 and viewer2 -> Default Org; viewer3 -> Other Org
   const users = [
-    { email: 'owner@example.com', password: 'password', role: 'OWNER' },
-    { email: 'admin@example.com', password: 'password', role: 'ADMIN' },
-    { email: 'viewer@example.com', password: 'password', role: 'VIEWER' },
+    { email: 'owner@example.com', password: 'password', role: 'OWNER', org: 'Default Org' },
+    { email: 'admin@example.com', password: 'password', role: 'ADMIN', org: 'Default Org' },
+    { email: 'viewer1@example.com', password: 'password', role: 'VIEWER', org: 'Default Org' },
+    { email: 'viewer2@example.com', password: 'password', role: 'VIEWER', org: 'Default Org' },
+    { email: 'viewer3@example.com', password: 'password', role: 'VIEWER', org: 'Other Org' },
   ];
 
   for (const u of users) {
     const exists = await get(db, 'SELECT id FROM user WHERE email = ?', [u.email]);
     const hash = await bcrypt.hash(u.password, 10);
+    const orgId = orgMap[u.org] || orgMap['Default Org'];
     if (exists) {
       // update passwordHash/role/org in case seeding changed or hash missing
       await run(
         db,
         'UPDATE user SET passwordHash = ?, role = ?, organizationId = ? WHERE email = ?',
-        [hash, u.role, org.id, u.email],
+        [hash, u.role, orgId, u.email],
       );
       console.log('[seed.js] updated user', u.email, exists.id);
       continue;
@@ -83,7 +92,7 @@ async function main() {
       u.email,
       hash,
       u.role,
-      org.id,
+      orgId,
     ]);
     console.log('[seed.js] created user', u.email, id);
   }

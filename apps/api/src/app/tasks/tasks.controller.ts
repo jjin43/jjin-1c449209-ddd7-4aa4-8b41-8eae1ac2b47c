@@ -13,13 +13,13 @@ export class TasksController {
   @Roles('VIEWER')
   @Get()
   async findAll(@Request() req: any) {
-    return this.tasksService.findAll(req.user.organizationId, req.user.role);
+    return this.tasksService.findAll(req.user);
   }
 
   @Roles('VIEWER')
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req: any) {
-    return this.tasksService.findOne(id, req.user.organizationId, req.user.role);
+    return this.tasksService.findOne(id, req.user);
   }
 
   @Roles('VIEWER')

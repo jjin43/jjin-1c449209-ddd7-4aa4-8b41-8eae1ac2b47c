@@ -1,4 +1,4 @@
-import { RolesGuard } from './roles.guard';
+import { RolesGuard } from '../../src/lib/roles.guard';
 
 function makeCtx(userRole: string | null = null) {
   return {

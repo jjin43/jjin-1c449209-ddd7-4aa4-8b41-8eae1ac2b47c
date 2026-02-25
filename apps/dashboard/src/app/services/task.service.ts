@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Task } from './task.model';
+import { Task } from '../models/task.model';
 
 const API_BASE = (window as any)['__API_BASE__'] || (globalThis as any)?.process?.env?.['API_BASE_URL'] || 'http://localhost:3000';
 

@@ -9,4 +9,6 @@ export interface Task {
   createdById: string;
   createdAt: string;
   updatedAt: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }

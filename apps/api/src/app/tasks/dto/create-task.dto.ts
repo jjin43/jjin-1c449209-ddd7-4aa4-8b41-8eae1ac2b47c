@@ -3,8 +3,13 @@ import { Type } from 'class-transformer';
 import { Role } from '@jjin-1c449209-ddd7-4aa4-8b41-8eae1ac2b47c/data';
 
 class PermissionDto {
+  @IsOptional()
   @IsString()
-  userId!: string;
+  userId?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
 
   @IsOptional()
   canEdit?: boolean;
@@ -25,9 +30,12 @@ export class CreateTaskDto {
   @IsString()
   category?: string;
 
-  @IsOptional()
   @IsIn([Role.OWNER, Role.ADMIN, Role.VIEWER])
   role?: Role;
+
+  @IsOptional()
+  @IsIn(['TODO', 'IN_PROGRESS', 'DONE'])
+  status?: string;
 
   @IsOptional()
   @IsArray()
