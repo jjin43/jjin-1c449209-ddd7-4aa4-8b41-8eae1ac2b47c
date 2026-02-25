@@ -25,12 +25,18 @@ function get(db, sql, params = []) {
 }
 
 async function main() {
-  const dbPath = path.resolve(process.cwd(), 'apps', 'api', 'db.sqlite');
+  // load .env and prefer DB_PATH from it (fall back to default path)
+  require('dotenv').config();
+  const dbPath = process.env.DB_PATH
+    ? path.isAbsolute(process.env.DB_PATH)
+      ? process.env.DB_PATH
+      : path.resolve(process.cwd(), process.env.DB_PATH)
+    : path.resolve(process.cwd(), 'apps', 'api', 'db.sqlite');
   console.log('[seed.js] using db:', dbPath);
 
   const db = openDb(dbPath);
 
-  // create tables if missing (simple schema matching entities)
+  // create tables if missing
   await run(db, `CREATE TABLE IF NOT EXISTS organization (
     id TEXT PRIMARY KEY,
     name TEXT UNIQUE,

@@ -34,7 +34,7 @@ export class TasksController {
     return this.tasksService.update(id, dto, req.user);
   }
 
-  @Roles('ADMIN')
+  @Roles('VIEWER')
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req: any) {
     return this.tasksService.remove(id, req.user);
